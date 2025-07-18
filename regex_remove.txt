@@ -1,0 +1,12 @@
+:?\s*click or tap here to enter text\.?
+person completing
+checklist \(name\)?:?
+date checklist
+completed:?
+<+
+>+
+__+
+\*+
+page \d of \d
+\d+\n\d+\n
+x+\n

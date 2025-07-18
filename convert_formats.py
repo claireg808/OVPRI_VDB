@@ -1,4 +1,5 @@
 ## Convert PDF and .docx to .txt files
+
 import os
 from pathlib import Path
 from pdfminer.high_level import extract_text
