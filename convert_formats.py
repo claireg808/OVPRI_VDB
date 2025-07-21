@@ -1,4 +1,4 @@
-## Convert PDF and .docx to .txt files
+## Convert .pdf and .docx to .txt files
 
 import os
 from pathlib import Path
