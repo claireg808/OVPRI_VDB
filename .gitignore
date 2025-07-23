@@ -1,3 +1,6 @@
 .env
 vdb_venv
 HRPP*
+*_out.txt
+chroma_hrpp
+*_logs.json
