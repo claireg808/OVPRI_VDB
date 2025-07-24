@@ -7,4 +7,8 @@
 
 source vdb_venv/bin/activate
 
-vllm serve deepseek-ai/DeepSeek-R1-Distill-Qwen-32B --max-model-len 35904
+export HUGGINGFACE_HUB_TOKEN=$(cat ~/OVPRI_VDB/.hf_token)
+
+huggingface-cli login --token "$HUGGINGFACE_HUB_TOKEN"
+
+vllm serve -- "meta-llama/Llama-3.1-8B"
