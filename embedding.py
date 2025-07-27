@@ -11,41 +11,13 @@ import os
 import re
 import nltk
 from dotenv import load_dotenv
-from langchain.schema import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from nltk.tokenize import sent_tokenize, word_tokenize
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document
 
 
 load_dotenv()
-nltk.download('punkt')
-nltk.download('punkt_tab')
-
-
-# chunk text into 250 token size
-def chunk_text(text, chunk_size=250, overlap=30):
-    sentences = sent_tokenize(text)
-    chunks = []
-    current_chunk = []
-    current_length = 0
-
-    for sentence in sentences:
-        words = word_tokenize(sentence)
-        if current_length + len(words) > chunk_size:
-            chunks.append(" ".join(current_chunk))
-            # Start new chunk with overlap
-            overlap_words = current_chunk[-overlap:] if overlap > 0 else []
-            current_chunk = overlap_words + words
-            current_length = len(current_chunk)
-        else:
-            current_chunk.extend(words)
-            current_length += len(words)
-
-    if current_chunk:
-        chunks.append(" ".join(current_chunk))
-
-    # remove possible empty chunks
-    return [c for c in chunks if c.strip()]
 
 
 # combine chunk data
@@ -80,10 +52,19 @@ if __name__ == '__main__':
     folder = 'HRPP_normalized'
     text_files = [f for f in os.listdir(folder) if f.endswith('.txt')]
 
+    # initialize embedding model
     embedding_model_name = os.environ['EMBEDDING_MODEL']
-    embedding_model = HuggingFaceEmbeddings(model_name=embedding_model_name)
+    embedding_model = HuggingFaceEmbeddings(
+                        model_name=embedding_model_name,
+                        encode_kwargs={"normalize_embeddings": True}
+                    )
 
-    chunked_records = []
+    # initialize tokenizer
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=512,
+        chunk_overlap=0,
+        separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+    )
 
     for file in text_files:
         doc_name = os.path.splitext(os.path.basename(file))[0]
@@ -95,7 +76,7 @@ if __name__ == '__main__':
             doc_date_match = re.search(r"\| (\d{1,2}\/\d{1,2}\/\d{4})", text)
             doc_date = doc_date_match.group(1) if doc_date_match else ''
 
-        chunks = chunk_text(text)
+            chunks = text_splitter.split_text(text)
         embeddings = embedding_model.embed_documents(chunks)
 
         # add metadata

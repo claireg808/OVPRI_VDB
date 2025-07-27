@@ -1,12 +1,12 @@
-:?\s*click or tap here to enter text\.?
-person completing
-checklist \(name\)?:?
-date checklist
+:?\s*click\s*or\s*tap\s*here\s*to\s*enter\s*text\.?
+person\s*completing
+checklist\s*\(name\)?:?
+date\s*checklist
 completed:?
 <+
 >+
 __+
 \*+
-page \d of \d
+page\s*\d\s*of\s*\d
 \d+\n\d+\n
 x+\n

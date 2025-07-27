@@ -8,24 +8,27 @@ from transformers import pipeline
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFacePipeline
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import LLMChain
+from langchain_openai import ChatOpenAI
 
 
 load_dotenv()
 
 
 # initialize embedding model & llm
-embedding_model = HuggingFaceEmbeddings(model_name=os.environ['EMBEDDING_MODEL'])
+embedding_model_name = os.environ['EMBEDDING_MODEL']
+embedding_model = HuggingFaceEmbeddings(
+                    model_name=embedding_model_name,
+                    encode_kwargs={'normalize_embeddings': True}
+                )
 
-pipe = pipeline('text-generation', 
-                model=os.environ['MODEL'], 
-                tokenizer=os.environ['MODEL'],
-                return_full_text=False
-        )
-
-llm = HuggingFacePipeline(pipeline=pipe)
+llm = ChatOpenAI(
+    base_url=os.environ['BASE_URL'],
+    api_key='dummy-key',
+    model=os.environ['MODEL']
+)
 
 
 # access stored vector database
@@ -38,15 +41,18 @@ vectorstore = Chroma(
 
 
 # prompt template
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful assistant. Use the following context to answer the question."),
-    ("human", "Context:\n{context}\n\nQuestion:\n{question}")
-])
+prompt = PromptTemplate.from_template(
+    'Use the following context to answer the question. Cite the source document name.\n'
+    'Context:\n{documents}\n\n'
+    'Question: {question}\n\n'
+    'Answer:'
+)
+
 
 
 # list of queries
-queries = ['What should I know about conducting human research?',
-           'Who can serve as LAR?']
+queries = ['What do I need to know about conducting human research?',
+           'What should an IRB member with a conflict of interest do?']
 
 
 # concatenate retrieved documents
@@ -55,38 +61,35 @@ def combine_docs(docs):
     for d in docs:
         name = d.metadata.get('document_name', '')
         content = d.page_content
-        combined_texts.append(f'Document name: {name}\n{content}')
+        combined_texts.append(f'Document name: {name}\nContent: {content}')
     return "\n\n".join(combined_texts)
 
 
 if __name__ == '__main__':
     # get top 5 results
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+    retriever = vectorstore.as_retriever(
+                    search_type='similarity',
+                    search_kwargs={"k": 5}
+                )
 
     # answer user queries
     logs = []
     for query in queries:
         user_query = query
         results = retriever.invoke(user_query)
-        print('results:')
-        print(results)
-        print('\n\ncombined results:')
-        context = combine_docs(results)
-        print(context)
+        combined_docs = combine_docs(results)
 
         # append retrieved context to query
         input_data = {
-            "context": context,
+            "documents": combined_docs,
             "question": user_query
         }
 
         # query the llm
-        output_parser = StrOutputParser()
-        rag_chain = prompt | llm
-        raw_response = rag_chain.invoke(input_data)
-        print("Raw LLM output:", raw_response)
-        response = output_parser.parse(raw_response)
-        print("Parsed response:", response)
+        rag_chain = prompt | llm | StrOutputParser()
+        response = rag_chain.invoke(input_data)
+
+        print(f'{user_query}\n{response}\n\n')
 
         # build a log entry
         log_entry = {

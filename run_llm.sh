@@ -11,4 +11,4 @@ export HUGGINGFACE_HUB_TOKEN=$(cat ~/OVPRI_VDB/.hf_token)
 
 huggingface-cli login --token "$HUGGINGFACE_HUB_TOKEN"
 
-vllm serve -- "meta-llama/Llama-3.1-8B"
+vllm serve meta-llama/Meta-Llama-3-8B-Instruct --served-model-name llama3
