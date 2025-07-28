@@ -32,27 +32,31 @@ llm = ChatOpenAI(
 
 
 # access stored vector database
-persist_dir = "./chroma_hrpp"
+persist_dir = './chroma_hrpp'
 vectorstore = Chroma(
-    collection_name="hrpp_docs",
+    collection_name='hrpp_docs',
     persist_directory=persist_dir,
     embedding_function=embedding_model
 )
 
 
+# initialize retriever to get top 5 results
+retriever = vectorstore.as_retriever(
+                search_type='similarity',
+                search_kwargs={'k': 5}
+            )
+
+
 # prompt template
 prompt = PromptTemplate.from_template(
     'Use the following context to answer the question. Cite the source document name.\n'
+    'Chat History:\n{history}\n\n'
     'Context:\n{documents}\n\n'
     'Question: {question}\n\n'
     'Answer:'
 )
 
-
-
-# list of queries
-queries = ['What do I need to know about conducting human research?',
-           'What should an IRB member with a conflict of interest do?']
+rag_chain = prompt | llm | StrOutputParser()
 
 
 # concatenate retrieved documents
@@ -62,50 +66,25 @@ def combine_docs(docs):
         name = d.metadata.get('document_name', '')
         content = d.page_content
         combined_texts.append(f'Document name: {name}\nContent: {content}')
-    return "\n\n".join(combined_texts)
+    return '\n\n'.join(combined_texts)
 
 
-if __name__ == '__main__':
-    # get top 5 results
-    retriever = vectorstore.as_retriever(
-                    search_type='similarity',
-                    search_kwargs={"k": 5}
-                )
+# answer given query
+logs = []
+def answer_query(query: str, history: list[str]) -> str:
+    # retrieve relevant context
+    docs = retriever.invoke(query)
+    combined_docs = combine_docs(docs)
 
-    # answer user queries
-    logs = []
-    for query in queries:
-        user_query = query
-        results = retriever.invoke(user_query)
-        combined_docs = combine_docs(results)
+    # utilize chat history
+    history_text = "\n".join([f'User: {q}' for q in history]) if history else ''
 
-        # append retrieved context to query
-        input_data = {
-            "documents": combined_docs,
-            "question": user_query
-        }
+    # append retrieved context to query
+    input_data = {
+        'history': history_text,
+        'documents': combined_docs,
+        'question': query
+    }
 
-        # query the llm
-        rag_chain = prompt | llm | StrOutputParser()
-        response = rag_chain.invoke(input_data)
-
-        print(f'{user_query}\n{response}\n\n')
-
-        # build a log entry
-        log_entry = {
-            "user_query": user_query,
-            "response": response,
-            "retrieved_docs": [
-                {
-                    "metadata": doc.metadata,
-                    "text": doc.page_content
-                }
-                for doc in results
-            ]
-        }
-
-        logs.append(log_entry)
-
-    # save rag logs
-    with open("rag_logs.json", "w", encoding="utf-8") as f:
-        json.dump(logs, f, ensure_ascii=False, indent=2)
+    # return rag response
+    return rag_chain.invoke(input_data)
