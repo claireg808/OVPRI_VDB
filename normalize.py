@@ -62,26 +62,26 @@ def _month_name_to_num(name: str) -> int | None:
 def date_conversion(text: str) -> str:
     # YYYY-MM-DD
     def repl_iso(m: re.Match) -> str:
-        y = int(m.group("y"))
-        mo = int(m.group("m"))
-        d = int(m.group("d"))
+        y = int(m.group('y'))
+        mo = int(m.group('m'))
+        d = int(m.group('d'))
         return _to_mmddyyyy(y, mo, d)
 
     # DD-MM-YYYY
     def repl_dmy(m: re.Match) -> str:
-        d = int(m.group("d"))
-        mo = int(m.group("m"))
-        y = int(m.group("y"))
+        d = int(m.group('d'))
+        mo = int(m.group('m'))
+        y = int(m.group('y'))
         return _to_mmddyyyy(y, mo, d)
 
     # Month DD, YYYY  (full or 3 digit month names)
     def repl_month(m: re.Match) -> str:
-        mon_name = m.group("mon")
-        d = int(m.group("d"))
-        y = int(m.group("y"))
+        mon_name = m.group('mon')
+        d = int(m.group('d'))
+        y = int(m.group('y'))
         mo = _month_name_to_num(mon_name)
         if mo is None:
-            return m.group(0)  # fallback unchanged
+            return m.group(0)  # fallback to unchanged
         return _to_mmddyyyy(y, mo, d)
 
 
@@ -145,4 +145,4 @@ if __name__ == "__main__":
         output_path = os.path.join(output_folder, filename)
         process_file(input_path, output_path, regex_lines)
     
-    print("\n\nComplete")
+    print('\n\nComplete')

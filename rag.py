@@ -5,6 +5,8 @@ import json
 import re
 from dotenv import load_dotenv
 from transformers import pipeline
+from googletrans import Translator
+from langdetect import detect
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFacePipeline
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -43,20 +45,14 @@ vectorstore = Chroma(
 # initialize retriever to get top 5 results
 retriever = vectorstore.as_retriever(
                 search_type='similarity',
-                search_kwargs={'k': 5}
+                search_kwargs={'k': 10}
             )
 
-
-# prompt template
-prompt = PromptTemplate.from_template(
-    'Use the following context to answer the question. Cite the source document name.\n'
-    'Chat History:\n{history}\n\n'
-    'Context:\n{documents}\n\n'
-    'Question: {question}\n\n'
-    'Answer:'
-)
-
-rag_chain = prompt | llm | StrOutputParser()
+# import english & spanish prompt versions
+with open('en_prompt_template.txt', 'r', encoding='utf-8') as f:
+    en_template = f.read()
+with open('es_prompt_template.txt', 'r', encoding='utf-8') as f:
+    es_template = f.read()
 
 
 # concatenate retrieved documents
@@ -70,14 +66,32 @@ def combine_docs(docs):
 
 
 # answer given query
-logs = []
 def answer_query(query: str, history: list[str]) -> str:
-    # retrieve relevant context
-    docs = retriever.invoke(query)
-    combined_docs = combine_docs(docs)
+    # determine query language: spanish or english
+    lang = detect(query)
+    if lang == 'es':
+        # retrieve Spanish prompt
+        prompt = PromptTemplate.from_template(es_template)
 
-    # utilize chat history
-    history_text = "\n".join([f'User: {q}' for q in history]) if history else ''
+        # retrieve relevant context & translate to Spanish
+        docs = retriever.invoke(query)
+        english_combined_docs = combine_docs(docs)
+        translator = Translator()
+        combined_docs = translator.translate(english_combined_docs, src='en', dest='es')
+
+        # utilize chat history
+        history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
+
+    else:
+        # retieve English prompt
+        prompt = PromptTemplate.from_template(en_template)
+
+        # retrieve relevant context
+        docs = retriever.invoke(query)
+        combined_docs = combine_docs(docs)
+
+        # utilize chat history
+        history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
 
     # append retrieved context to query
     input_data = {
@@ -86,5 +100,20 @@ def answer_query(query: str, history: list[str]) -> str:
         'question': query
     }
 
+    rag_chain = prompt | llm | StrOutputParser()
+    response = rag_chain.invoke(input_data)
+
+    log_entry = {
+        'user_query': query,
+        'response': response,
+        'retrieved_docs': [
+            {
+                'metadata': doc.metadata,
+                'text': doc.page_content
+            }
+            for doc in docs
+        ]
+    }
+
     # return rag response
-    return rag_chain.invoke(input_data)
+    return response, log_entry
