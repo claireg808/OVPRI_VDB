@@ -9,7 +9,6 @@
 
 import os
 import re
-import nltk
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -25,12 +24,12 @@ chunked_records = []
 def assemble_chunks(chunks, embeddings, doc_name, doc_date):
     for idx, (chunk, vector) in enumerate(zip(chunks, embeddings)):
         chunked_records.append({
-            "text": chunk,
-            "embedding": vector, 
-            "metadata": {
-                "chunk_number": idx,
-                "document_name": doc_name,
-                "document_date": doc_date
+            'text': chunk,
+            'embedding': vector, 
+            'metadata': {
+                'chunk_number': idx,
+                'document_name': doc_name,
+                'document_date': doc_date
             }
         })
 
@@ -41,8 +40,8 @@ def records_to_documents(records):
     for r in records:
         docs.append(
             Document(
-                page_content=r["text"],
-                metadata=r["metadata"]
+                page_content=r['text'],
+                metadata=r['metadata']
             )
         )
     return docs
@@ -52,12 +51,9 @@ if __name__ == '__main__':
     folder = 'HRPP_normalized'
     text_files = [f for f in os.listdir(folder) if f.endswith('.txt')]
 
-    # initialize embedding model
-    embedding_model_name = os.environ['EMBEDDING_MODEL']
-    embedding_model = HuggingFaceEmbeddings(
-                        model_name=embedding_model_name,
-                        encode_kwargs={"normalize_embeddings": True}
-                    )
+    # initialize embedding model: 1024d
+    embed_model_name = os.environ['EMBEDDING_MODEL']
+    embedding_model = HuggingFaceEmbeddings(model_name=embed_model_name)
 
     # initialize tokenizer
     text_splitter = RecursiveCharacterTextSplitter(
@@ -86,14 +82,13 @@ if __name__ == '__main__':
     docs = records_to_documents(chunked_records)
 
     # create or update Chroma DB
-    persist_dir = "./chroma_hrpp"
     vectorstore = Chroma.from_documents(
         documents=docs,
+        collection_name='hrpp_docs',
         embedding=embedding_model,
-        collection_name="hrpp_docs",
-        persist_directory=persist_dir,
+        persist_directory='./chroma_hrpp'
     )
-    vectorstore.persist()
-    print("Chroma DB built and persisted.")
+
+    print('Chroma DB built and persisted.')
 
     print(chunked_records[:2])
