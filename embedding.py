@@ -90,5 +90,4 @@ if __name__ == '__main__':
     )
 
     print('Chroma DB built and persisted.')
-
-    print(chunked_records[:2])
+    print(len(chunked_records[0]['embedding']))

@@ -2,7 +2,7 @@
 
 import json
 import streamlit as st
-from rag import answer_query
+from rag import response
 
 st.title('OVPRI AI Chat')
 
@@ -29,8 +29,8 @@ if user_input:
     # query the llm with the chat history + current question
     with st.spinner('Answering your question...'):
         user_chats = [msg for role, msg in st.session_state.chat_history if role == "user"]
-        response, log = answer_query(user_input, history=user_chats)
-        st.session_state.chat_history.append(('bot', response))
+        query_response = response(user_input)
+        st.session_state.chat_history.append(('bot', query_response))
 
         if not st.session_state.log_saved:
             # create log of interaction
