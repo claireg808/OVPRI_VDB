@@ -5,11 +5,12 @@
 #SBATCH --qos=short
 #SBATCH --job-name=run_llm
 
+module load python/3.11
 
 source vdb_venv/bin/activate
 
 export HUGGINGFACE_HUB_TOKEN=$(cat ~/OVPRI_VDB/.hf_token)
-huggingface-cli login --token "$HUGGINGFACE_HUB_TOKEN"
+hf auth login --token "$HUGGINGFACE_HUB_TOKEN"
 
 # start vLLM in the background
 vllm serve meta-llama/Meta-Llama-3-8B-Instruct \

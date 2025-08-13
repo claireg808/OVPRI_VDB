@@ -1,23 +1,13 @@
 ## Perform RAG based on local Chroma DB
 
 import os
-import json
-import re
+import textwrap
+from langdetect import detect_langs
 from dotenv import load_dotenv
-from googletrans import Translator
-from langdetect import detect
-from typing_extensions import List, TypedDict
+from deep_translator import GoogleTranslator
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.documents import Document
-from langchain_core.tools import tool
-from langchain_core.messages import SystemMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph import START, END, StateGraph, MessagesState
-from langgraph.prebuilt import ToolNode, tools_condition
-from langgraph.checkpoint.memory import MemorySaver
 
 
 load_dotenv()
@@ -25,7 +15,10 @@ load_dotenv()
 
 # initialize embedding model & llm
 embedding_model_name = os.environ['EMBEDDING_MODEL']
-embedding_model = HuggingFaceEmbeddings(model_name=embedding_model_name)
+embedding_model = HuggingFaceEmbeddings(
+                    model_name=embedding_model_name,
+                    encode_kwargs={'normalize_embeddings': True}
+                )
 
 llm = ChatOpenAI(
     base_url=os.environ['BASE_URL'],
@@ -49,13 +42,6 @@ retriever = vectorstore.as_retriever(
                 search_kwargs={'k': 10}
             )
 
-# initialize memory for chat history
-memory = MemorySaver()
-
-# import prompt template
-with open('prompt_template.txt', 'r', encoding='utf-8') as f:
-    prompt_template = f.read()
-
 
 # concatenate retrieved documents
 def combine_docs(docs):
@@ -63,77 +49,55 @@ def combine_docs(docs):
     for d in docs:
         name = d.metadata.get('document_name', '')
         content = d.page_content
-        combined_texts.append(f'Source: {name}\nContent: {content}')
+        combined_texts.append(f'Document name: {name}\nContent: {content}')
     return '\n\n'.join(combined_texts)
 
 
-# use retriever to find relevant documents
-@tool(response_format='content_and_artifact')
-def retrieve(query: str):
+# answer given query
+def answer_query(query: str, history: list[str]) -> str:    
+    # retrieve relevant context
     docs = retriever.invoke(query)
     combined_docs = combine_docs(docs)
-    return combined_docs, docs
 
-# generate Message that can include a tool-call
-def query_or_respond(state: MessagesState):
-    llm_with_tools = llm.bind_tools([retrieve])
-    response = llm_with_tools.invoke(state['messages'])
-    return {'messages': [response]}
+    # utilize chat history
+    history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
 
-tools = ToolNode([retrieve])
+    # generate prompt
+    with open('prompt_template.txt', 'r', encoding='utf-8') as f:
+        prompt_template_txt = f.read()
 
-# generate response
-def generate(state: MessagesState):
-    recent_tool_messages = []
-    for message in reversed(state['messages']):
-        if message.type == 'tool':
-            recent_tool_messages.append(message)
-        else:
-            break
-    tool_messages = recent_tool_messages[::-1]
-    docs_content = "\n\n".join(doc.content for doc in tool_messages)
+    full_prompt = prompt_template_txt \
+                .replace('{documents}', combined_docs) \
+                .replace('{history}', history_text)
 
-    prompt_template = PromptTemplate.from_template(prompt_template)
-    prompt_template['documents'] = docs_content
+    # translate prompt if query language is not English
+    detection = detect_langs(query)[0]
+    lang, confidence = detection.lang, detection.prob
+    if lang != 'en' and confidence>0.90:
+        prompt_sections = textwrap.wrap(full_prompt, 5000)
+        result = ''
+        # retrieve relevant context & translate to query language
+        for text in prompt_sections:
+            result += GoogleTranslator(source='en', target=lang).translate(text)
+        full_prompt = result
 
-    conversation_messages = [
-        message
-        for message in state['messages']
-        if message.type in ('human', 'system')
-        or (message.type == 'ai' and not message.tool_calls)
-    ]
+    # prompt LLM
+    response = llm.invoke(full_prompt).content + '\n\nDisclaimer: This response is for educational purposes only. For official determinations, please consult the IRB through VIRBS.'
 
-    prompt = [SystemMessage(prompt_template)] + conversation_messages
+    log_entry = {
+        'prompt': full_prompt,
+        'language': lang,
+        'user_query': query,
+        'response': response,
+        'retrieved_docs': [
+            {
+                'metadata': doc.metadata,
+                'text': doc.page_content
+            }
+            for doc in docs
+        ],
+        'chat_history': history
+    }
 
-    rag_chain = prompt | llm | StrOutputParser()
-
-    # if the query is in another language, prompt in that language
-    lang = detect(state['messages'][-1])
-    if lang != 'en':
-        translator = Translator()
-        prompt = translator.translate(prompt, src='en', dest=lang)
-
-    response = rag_chain.invoke(prompt)
-    return {'messages': response}
-
-
-# compile application flow into a graph object & retrieve response
-def response(question):
-    graph_builder = StateGraph(state_schema=MessagesState)
-
-    graph_builder.add_node(query_or_respond)
-    graph_builder.add_node(tools)
-    graph_builder.add_node(generate)
-
-    graph_builder.set_entry_point('query_or_respond')
-    graph_builder.add_conditional_edges(
-        'query_or_respond',
-        tools_condition,
-        {END: END, 'tools': 'tools'},
-    )
-    graph_builder.add_edge('tools', 'generate')
-    graph_builder.add_edge('generate', END)
-
-    graph = graph_builder.compile(checkpointer=memory)
-
-    return graph.invoke({'question': question})
+    # return rag response
+    return response, log_entry
