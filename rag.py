@@ -74,7 +74,7 @@ def answer_query(query: str, history: list[str]) -> str:
     # translate prompt if query language is not English
     detection = detect_langs(query)[0]
     lang, confidence = detection.lang, detection.prob
-    if lang != 'en' and confidence>0.90:
+    if lang != 'en' and confidence>0.90 and len(query)>10:
         prompt_sections = textwrap.wrap(full_prompt, 5000)
         result = ''
         # retrieve relevant context & translate to query language

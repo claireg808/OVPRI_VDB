@@ -29,17 +29,16 @@ anonymizer = AnonymizerEngine()
 
 # prompt for user input
 user_input = st.chat_input(placeholder='Ask me questions or upload documents for review', accept_file='multiple')
-query = user_input['text']
-documents = user_input['files']
 
 # anonymize input text
-if query:
+if user_input and user_input['text']:
+    query = user_input['text']
     analyzer_results = analyzer.analyze(text=query, language='en')
-    anonymized_query = anonymizer.anonymize(text=query, analyzer_results=analyzer_results)
+    anonymized_query = anonymizer.anonymize(text=query, analyzer_results=analyzer_results).text
 
 try:
     # answer document upload queries
-    if documents:
+    if user_input and user_input['files']:
         if query:
             st.session_state.chat_history.append(('user', anonymized_query))
         st.session_state.chat_history.append(('bot', 'I apologize, document upload is currently under development'))
@@ -47,7 +46,7 @@ try:
         st.rerun()
 
     # answer text query using rag
-    elif query:
+    elif user_input and user_input['text']:
         st.session_state.chat_history.append(('user', anonymized_query))
 
         # display chat history with user's message
