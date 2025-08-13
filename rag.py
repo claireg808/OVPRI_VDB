@@ -67,8 +67,9 @@ def answer_query(query: str, history: list[str]) -> str:
         prompt_template_txt = f.read()
 
     full_prompt = prompt_template_txt \
+                .replace('{history}', history_text) \
                 .replace('{documents}', combined_docs) \
-                .replace('{history}', history_text)
+                .replace('{query}', query)
 
     # translate prompt if query language is not English
     detection = detect_langs(query)[0]
