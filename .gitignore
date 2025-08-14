@@ -1,7 +1,7 @@
 .env
 vdb_venv
 HRPP*
-*_out.txt
+*.log
 chroma_hrpp
 *_logs.json
 .hf_token

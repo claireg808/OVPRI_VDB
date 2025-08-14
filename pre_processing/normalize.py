@@ -8,36 +8,40 @@
 
 import os
 import re
-from pathlib import Path
-from cleantext import clean
 from datetime import datetime
 
 
 # read in regex removal lines
 def load_regex_patterns():
-    with open('regex_remove.txt', 'r', encoding='utf-8') as file:
+    with open('pre_processing/regex_remove.txt', 'r', encoding='utf-8') as file:
         return file.read().splitlines()
 
 
 # apply regex to remove custom lines
-def remove_custom(text, regex_lines):
+def clean(text, regex_lines):
+    text = text.lower()
     for rgx in regex_lines:
         try:
-            text = re.sub(rgx, "", text)
+            text = re.sub(rgx, '', text)
         except re.error as e:
             print(f"[ERROR] Invalid regex pattern '{rgx}': {e}")
-    text = re.sub(r'(\n\s*){2,}', '\n', text, flags=re.MULTILINE)
+    # remove superscripts
+    text = re.sub(r'(?<=[A-Za-z])\d', '', text)
+    # sub multiple spaces and newlines
+    text = re.sub(r'(\s+|\n)', ' ', text)
+    # normalize dash formatting
+    text = re.sub(r'\s*-\s*', '-', text)
     return text
 
 
-# precompile regexes for speed
-_RE_ISO = re.compile(r"\b(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})\b")  # YYYY-MM-DD
-_RE_DMY = re.compile(r"\b(?P<d>\d{2})-(?P<m>\d{2})-(?P<y>\d{4})\b")  # DD-MM-YYYY
-_RE_MONTH = re.compile(r"\b(?P<mon>[A-Za-z]+)\s(?P<d>\d{1,2}),\s(?P<y>\d{4})\b")  # Month DD, YYYY
+# precompile regexes
+RE_YMD = re.compile(r"\b(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})\b")  # YYYY-MM-DD
+RE_DMY = re.compile(r"\b(?P<d>\d{2})-(?P<m>\d{2})-(?P<y>\d{4})\b")  # DD-MM-YYYY
+RE_MONTH = re.compile(r"\b(?P<mon>[A-Za-z]+)\s(?P<d>\d{1,2}),\s(?P<y>\d{4})\b")  # Month DD, YYYY
 
 
 # convert to MM/DD/YYYY format
-def _to_mmddyyyy(year: int, month: int, day: int) -> str:
+def to_mmddyyyy(year: int, month: int, day: int) -> str:
     try:
         dt = datetime(year, month, day)
         return dt.strftime("%m/%d/%Y")
@@ -47,7 +51,7 @@ def _to_mmddyyyy(year: int, month: int, day: int) -> str:
 
 
 # convert named month
-def _month_name_to_num(name: str) -> int | None:
+def month_name_to_num(name: str) -> int | None:
     try:
         return datetime.strptime(name.strip()[:3], "%b").month  # first 3 chars enough
     except ValueError:
@@ -61,45 +65,42 @@ def _month_name_to_num(name: str) -> int | None:
 # scan text for dates to convert
 def date_conversion(text: str) -> str:
     # YYYY-MM-DD
-    def repl_iso(m: re.Match) -> str:
+    def repl_ymd(m: re.Match) -> str:
         y = int(m.group('y'))
         mo = int(m.group('m'))
         d = int(m.group('d'))
-        return _to_mmddyyyy(y, mo, d)
+        return to_mmddyyyy(y, mo, d)
 
     # DD-MM-YYYY
     def repl_dmy(m: re.Match) -> str:
         d = int(m.group('d'))
         mo = int(m.group('m'))
         y = int(m.group('y'))
-        return _to_mmddyyyy(y, mo, d)
+        return to_mmddyyyy(y, mo, d)
 
     # Month DD, YYYY  (full or 3 digit month names)
     def repl_month(m: re.Match) -> str:
         mon_name = m.group('mon')
         d = int(m.group('d'))
         y = int(m.group('y'))
-        mo = _month_name_to_num(mon_name)
+        mo = month_name_to_num(mon_name)
         if mo is None:
             return m.group(0)  # fallback to unchanged
-        return _to_mmddyyyy(y, mo, d)
+        return to_mmddyyyy(y, mo, d)
 
 
     # apply conversions
-    text = _RE_ISO.sub(repl_iso, text)
-    text = _RE_DMY.sub(repl_dmy, text)
-    text = _RE_MONTH.sub(repl_month, text)
+    text = RE_YMD.sub(repl_ymd, text)
+    text = RE_DMY.sub(repl_dmy, text)
+    text = RE_MONTH.sub(repl_month, text)
 
     return text
 
 
 # normalize the text
 def clean_text(text: str, regex_lines: list) -> str:    
-    # use cleantext library for initial cleaning
-    cleaned_text = clean(text)
-    
-    # apply custom regex removal
-    cleaned_text = remove_custom(cleaned_text, regex_lines)
+    # apply custom normalization
+    cleaned_text = clean(text, regex_lines)
     
     # apply date conversion
     cleaned_text = date_conversion(cleaned_text)
@@ -127,7 +128,7 @@ def process_file(input_path: str, output_path: str, regex_lines: list) -> None:
         print(f'Error processing {input_path}: {e}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # load regex patterns
     regex_lines = load_regex_patterns()
     

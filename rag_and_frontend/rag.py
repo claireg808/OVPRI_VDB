@@ -48,8 +48,9 @@ def combine_docs(docs):
     combined_texts = []
     for d in docs:
         name = d.metadata.get('document_name', '')
+        date = d.metadata.get('effective_date', '')
         content = d.page_content
-        combined_texts.append(f'Document name: {name}\nContent: {content}')
+        combined_texts.append(f'Document Name: {name}\nEffective Date: {date}\nContent: {content}')
     return '\n\n'.join(combined_texts)
 
 
@@ -63,7 +64,7 @@ def answer_query(query: str, history: list[str]) -> str:
     history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
 
     # generate prompt
-    with open('prompt_template.txt', 'r', encoding='utf-8') as f:
+    with open('rag_and_frontend/prompt_template.txt', 'r', encoding='utf-8') as f:
         prompt_template_txt = f.read()
 
     full_prompt = prompt_template_txt \

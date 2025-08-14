@@ -2,7 +2,7 @@
 
 import json
 import streamlit as st
-from rag_and_frontend.rag import answer_query
+from rag import answer_query
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import TransformersNlpEngine, NerModelConfiguration
 from presidio_anonymizer import AnonymizerEngine

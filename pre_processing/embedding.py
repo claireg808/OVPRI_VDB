@@ -9,7 +9,9 @@
 
 import os
 import re
+import pandas as pd
 from dotenv import load_dotenv
+from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -29,7 +31,7 @@ def assemble_chunks(chunks, embeddings, doc_name, doc_date):
             'metadata': {
                 'chunk_number': idx,
                 'document_name': doc_name,
-                'document_date': doc_date
+                'effective_date': doc_date
             }
         })
 
@@ -45,6 +47,42 @@ def records_to_documents(records):
             )
         )
     return docs
+
+# extract the date of document revision
+def extract_revision_date(doc_name: str, file_text: str) -> str:
+    # list of documents to skip
+    skip = ['HRP General Documents', 'HRP Templates']
+
+    # check the start for the revision date
+    date_at_start_match = re.search(r"^[a-z]*-[0-9]*[a-z]? \|\s*(\d{1,2}\/\d{1,2}\/\d{4})", file_text)
+    if date_at_start_match:
+        date = date_at_start_match.group(1)
+        formatted_date = datetime.strptime(date, '%m/%d/%Y').strftime('%m/%d/%Y')
+        return formatted_date
+    
+    # list of possible identifications for the revision date
+    list_of_date_formats = [
+        "revised:?\s*(\d{1,2}\/\d{1,2}\/\d{4})",
+        "revision\s*(?:date)?:?\s*(\d{1,2}\/\d{1,2}\/\d{4})"
+    ]
+
+    # find all revision dates in the document
+    doc_date_matches = []
+    for rgx in list_of_date_formats:
+        doc_date_matches.extend(re.findall(rgx, file_text))
+
+    # if no revision date is found
+    if not doc_date_matches or doc_name in skip:
+        print(f'[INFO] No revision date found: {doc_name}')
+        return ''
+
+    # convert to datetime objects and sort
+    doc_date_series = pd.Series(doc_date_matches)
+    sorted_dates = doc_date_series.apply(pd.to_datetime, format='%m/%d/%Y').sort_values()
+    # choose latest date
+    final_date = sorted_dates.iloc[-1].strftime('%m/%d/%Y')
+
+    return final_date
 
 
 if __name__ == '__main__':
@@ -64,15 +102,15 @@ if __name__ == '__main__':
 
     for file in text_files:
         doc_name = os.path.splitext(os.path.basename(file))[0]
-        print(f'Embedding {doc_name}')
+
+        print(f'[INFO] Embedding {doc_name}')
 
         input_path = os.path.join(folder, file)
         with open(input_path, 'r', encoding='utf-8') as f:
             text = f.read()
-            doc_date_match = re.search(r"\| (\d{1,2}\/\d{1,2}\/\d{4})", text)
-            doc_date = doc_date_match.group(1) if doc_date_match else ''
-
+            doc_date = extract_revision_date(doc_name, text)
             chunks = text_splitter.split_text(text)
+
         embeddings = embedding_model.embed_documents(chunks)
 
         # add metadata
@@ -89,5 +127,5 @@ if __name__ == '__main__':
         persist_directory='./data/chroma_hrpp'
     )
 
-    print('Chroma DB built and persisted.')
+    print('[INFO] Chroma DB built and persisted.')
     print(len(chunked_records[0]['embedding']))

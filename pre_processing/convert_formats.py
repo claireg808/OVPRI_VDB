@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from pdfminer.high_level import extract_text
-from docx import Document
+import docx2txt
 
 def process_files(folder_path: str) -> None:
     # check if folder exists
@@ -23,13 +23,7 @@ def process_files(folder_path: str) -> None:
             if '.pdf' in str(file_path):  # .pdf
                 text = extract_text(file_path)
             else:  # .docx
-                full_text = []
-
-                doc = Document(file_path)
-                for para in doc.paragraphs:
-                    full_text.append(para.text)
-
-                text = '\n'.join(full_text)
+                text = docx2txt.process(file_path)
 
             # save file as .txt
             folder = 'data/HRPP_text'
