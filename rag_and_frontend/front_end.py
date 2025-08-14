@@ -2,9 +2,9 @@
 
 import json
 import streamlit as st
-from rag import answer_query
+from rag_and_frontend.rag import answer_query
 from presidio_analyzer import AnalyzerEngine
-from presidio_analyzer.nlp_engine import TransformersNlpEngine
+from presidio_analyzer.nlp_engine import TransformersNlpEngine, NerModelConfiguration
 from presidio_anonymizer import AnonymizerEngine
 
 st.title('AI IRB Assistant')
@@ -18,14 +18,17 @@ if 'log_saved' not in st.session_state:
     st.session_state.log_saved = False
 
 # initialize analyzer and anonymizer
-model_config = [{'lang_code': 'en', 'model_name': {
-    'spacy': 'en_core_web_sm',
-    'transformers': 'dslim/bert-base-NER'
+model_config = [
+    {'lang_code': 'en', 
+     'model_name': {
+        'spacy': 'en_core_web_sm',
+        'transformers': 'dslim/bert-base-NER'
     }
 }]
 nlp_engine = TransformersNlpEngine(models=model_config)
 analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
 anonymizer = AnonymizerEngine()
+allow_list = ['IRB']
 
 # prompt for user input
 user_input = st.chat_input(placeholder='Ask me questions or upload documents for review', accept_file='multiple')
@@ -33,7 +36,7 @@ user_input = st.chat_input(placeholder='Ask me questions or upload documents for
 # anonymize input text
 if user_input and user_input['text']:
     query = user_input['text']
-    analyzer_results = analyzer.analyze(text=query, language='en')
+    analyzer_results = analyzer.analyze(text=query, language='en', allow_list=allow_list)
     anonymized_query = anonymizer.anonymize(text=query, analyzer_results=analyzer_results).text
 
 try:

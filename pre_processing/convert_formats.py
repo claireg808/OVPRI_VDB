@@ -5,7 +5,7 @@ from pathlib import Path
 from pdfminer.high_level import extract_text
 from docx import Document
 
-def process_files(folder_path: str = 'HRPP') -> None:
+def process_files(folder_path: str) -> None:
     # check if folder exists
     if not os.path.exists(folder_path):
         print(f"{folder_path} does not exist")
@@ -17,7 +17,7 @@ def process_files(folder_path: str = 'HRPP') -> None:
 
     # convert & save each file
     for file_path in files:
-        print(f"Opening {file_path}")
+        print(f'Opening {file_path}')
         
         try:
             if '.pdf' in str(file_path):  # .pdf
@@ -32,7 +32,7 @@ def process_files(folder_path: str = 'HRPP') -> None:
                 text = '\n'.join(full_text)
 
             # save file as .txt
-            folder = 'HRPP_text'
+            folder = 'data/HRPP_text'
             os.makedirs(folder, exist_ok=True)
             output_path = os.path.join(folder, f'{Path(file_path).stem}.txt')
 
@@ -40,8 +40,8 @@ def process_files(folder_path: str = 'HRPP') -> None:
                 f.write(text)
             
         except Exception as e:
-            print(f"Error processing {file_path}: {e}")
+            print(f'Error processing {file_path}: {e}')
             continue
 
-if __name__ == "__main__":
-    process_files()
+if __name__ == '__main__':
+    process_files('data/HRPP')

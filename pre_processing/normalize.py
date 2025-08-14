@@ -132,8 +132,8 @@ if __name__ == "__main__":
     regex_lines = load_regex_patterns()
     
     # I/O folders
-    input_folder = 'HRPP_text'
-    output_folder = 'HRPP_normalized'
+    input_folder = 'data/HRPP_text'
+    output_folder = 'data/HRPP_normalized'
     os.makedirs(output_folder, exist_ok=True)
     
     # find all .txt files

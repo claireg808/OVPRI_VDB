@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --gres=gpu:80g:1
 #SBATCH --mem=100G
-#SBATCH --output=launch_out.txt
+#SBATCH --output=rag_and_frontend/launch_out.log
 #SBATCH --qos=short
 #SBATCH --job-name=run_llm
 
@@ -15,10 +15,10 @@ hf auth login --token "$HUGGINGFACE_HUB_TOKEN"
 # start vLLM in the background
 vllm serve meta-llama/Meta-Llama-3-8B-Instruct \
     --served-model-name llama3 \
-    > vllm_out.txt 2>&1 &
+    > rag_and_frontend/vllm_out.log 2>&1 &
 
 # start Streamlit
-streamlit run front_end.py \
+streamlit run rag_and_frontend/front_end.py \
     --server.port 8501 \
     --server.headless true \
     --server.address 0.0.0.0

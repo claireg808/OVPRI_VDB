@@ -48,7 +48,7 @@ def records_to_documents(records):
 
 
 if __name__ == '__main__':
-    folder = 'HRPP_normalized'
+    folder = 'data/HRPP_normalized'
     text_files = [f for f in os.listdir(folder) if f.endswith('.txt')]
 
     # initialize embedding model: 1024d
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         documents=docs,
         collection_name='hrpp_docs',
         embedding=embedding_model,
-        persist_directory='./chroma_hrpp'
+        persist_directory='./data/chroma_hrpp'
     )
 
     print('Chroma DB built and persisted.')
