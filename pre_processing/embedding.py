@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.schema import Document
 
 
@@ -94,10 +94,10 @@ if __name__ == '__main__':
     embedding_model = HuggingFaceEmbeddings(model_name=embed_model_name)
 
     # initialize tokenizer
-    text_splitter = RecursiveCharacterTextSplitter(
+    text_splitter = CharacterTextSplitter(
         chunk_size=512,
-        chunk_overlap=0,
-        separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+        chunk_overlap=100,
+        separator = ' '
     )
 
     for file in text_files:
@@ -124,8 +124,8 @@ if __name__ == '__main__':
         documents=docs,
         collection_name='hrpp_docs',
         embedding=embedding_model,
-        persist_directory='./data/chroma_hrpp'
+        persist_directory='data/chroma_hrpp'
     )
 
     print('[INFO] Chroma DB built and persisted.')
-    print(len(chunked_records[0]['embedding']))
+

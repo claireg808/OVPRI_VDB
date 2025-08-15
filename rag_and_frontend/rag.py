@@ -28,18 +28,20 @@ llm = ChatOpenAI(
 
 
 # access stored vector database
-persist_dir = './chroma_hrpp'
 vectorstore = Chroma(
     collection_name='hrpp_docs',
-    persist_directory=persist_dir,
+    persist_directory='data/chroma_hrpp',
     embedding_function=embedding_model
 )
 
 
-# initialize retriever to get top 5 results
+# initialize retriever to get top 10 results
 retriever = vectorstore.as_retriever(
                 search_type='similarity',
-                search_kwargs={'k': 10}
+                search_kwargs={
+                    'k': 10,
+                    'include': ['documents', 'metadatas', 'distances'] 
+                }
             )
 
 
@@ -91,13 +93,7 @@ def answer_query(query: str, history: list[str]) -> str:
         'language': lang,
         'user_query': query,
         'response': response,
-        'retrieved_docs': [
-            {
-                'metadata': doc.metadata,
-                'text': doc.page_content
-            }
-            for doc in docs
-        ],
+        'retrieved_docs': combined_docs,
         'chat_history': history
     }
 
