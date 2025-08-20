@@ -27,10 +27,13 @@ def clean(text, regex_lines):
             print(f"[ERROR] Invalid regex pattern '{rgx}': {e}")
     # remove superscripts
     text = re.sub(r'(?<=[A-Za-z])\d', '', text)
-    # sub multiple spaces and newlines
-    text = re.sub(r'(\s+|\n)', ' ', text)
     # normalize dash formatting
     text = re.sub(r'\s*-\s*', '-', text)
+    # replace 'o' bullet points with a single space
+    text = re.sub(r'\s+o\s+', ' ', text)
+    # correct multiple spaces and newlines
+    text = re.sub(r'(\s+|\n)', ' ', text)
+    
     return text
 
 

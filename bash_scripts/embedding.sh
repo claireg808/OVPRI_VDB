@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --gres=gpu:80g:1
+#SBATCH --gres=gpu:40g:1
 #SBATCH --mem=100G
 #SBATCH --output=pre_processing/emb_out.log
 #SBATCH --qos=short

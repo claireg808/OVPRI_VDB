@@ -28,7 +28,7 @@ model_config = [
 nlp_engine = TransformersNlpEngine(models=model_config)
 analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
 anonymizer = AnonymizerEngine()
-allow_list = ['IRB']
+allow_list = ['IRB', 'VCU', 'Department of Education', 'NIH', 'CoC']
 
 # prompt for user input
 user_input = st.chat_input(placeholder='Ask me questions or upload documents for review', accept_file='multiple')

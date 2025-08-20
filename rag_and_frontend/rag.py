@@ -8,6 +8,7 @@ from deep_translator import GoogleTranslator
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
+from sentence_transformers import CrossEncoder
 
 
 load_dotenv()
@@ -30,7 +31,7 @@ llm = ChatOpenAI(
 # access stored vector database
 vectorstore = Chroma(
     collection_name='hrpp_docs',
-    persist_directory='data/chroma_hrpp',
+    persist_directory='./data/chroma_db',
     embedding_function=embedding_model
 )
 
@@ -44,6 +45,19 @@ retriever = vectorstore.as_retriever(
                 }
             )
 
+
+# re-rank retrieved documents based on the query
+def re_rank(query, docs):
+    cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L6-v2')
+
+    scored_documents = []
+    for doc in docs:
+        text = doc.page_content
+        score = cross_encoder.predict((query, text))
+        #if score > 0.5:
+        scored_documents.append((doc, score))
+
+    return scored_documents
 
 # concatenate retrieved documents
 def combine_docs(docs):
@@ -59,8 +73,9 @@ def combine_docs(docs):
 # answer given query
 def answer_query(query: str, history: list[str]) -> str:    
     # retrieve relevant context
-    docs = retriever.invoke(query)
-    combined_docs = combine_docs(docs)
+    docs = retriever.invoke(query.lower())
+    filtered_docs = re_rank(query.lower(), docs)
+    #combined_docs = combine_docs(filtered_docs)
 
     # utilize chat history
     history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
@@ -69,10 +84,10 @@ def answer_query(query: str, history: list[str]) -> str:
     with open('rag_and_frontend/prompt_template.txt', 'r', encoding='utf-8') as f:
         prompt_template_txt = f.read()
 
-    full_prompt = prompt_template_txt \
-                .replace('{history}', history_text) \
-                .replace('{documents}', combined_docs) \
-                .replace('{query}', query)
+    # full_prompt = prompt_template_txt \
+    #             .replace('{history}', history_text) \
+    #             .replace('{documents}', combined_docs) \
+    #             .replace('{query}', query)
 
     # translate prompt if query language is not English
     detection = detect_langs(query)[0]
@@ -86,16 +101,17 @@ def answer_query(query: str, history: list[str]) -> str:
         full_prompt = result
 
     # prompt LLM
-    response = llm.invoke(full_prompt).content + '\n\nDisclaimer: This response is for educational purposes only. For official determinations, please consult the IRB through VIRBS.'
+    #response = llm.invoke(full_prompt).content + '\n\nDisclaimer: This response is for educational purposes only. For official determinations, please consult the IRB through VIRBS.'
+    response = filtered_docs
 
-    log_entry = {
-        'prompt': full_prompt,
-        'language': lang,
-        'user_query': query,
-        'response': response,
-        'retrieved_docs': combined_docs,
-        'chat_history': history
-    }
+    # log_entry = {
+    #     'prompt': full_prompt,
+    #     'language': lang,
+    #     'user_query': query,
+    #     'response': response,
+    #     'retrieved_docs': combined_docs,
+    #     'chat_history': history
+    # }
 
     # return rag response
-    return response, log_entry
+    return response, 'log_entry'

@@ -14,16 +14,17 @@ from dotenv import load_dotenv
 from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
+from chromadb import PersistentClient
 
 
 load_dotenv()
 
 
 # combine chunk data
-chunked_records = []
 def assemble_chunks(chunks, embeddings, doc_name, doc_date):
+    chunked_records = []
     for idx, (chunk, vector) in enumerate(zip(chunks, embeddings)):
         chunked_records.append({
             'text': chunk,
@@ -35,17 +36,20 @@ def assemble_chunks(chunks, embeddings, doc_name, doc_date):
             }
         })
 
+    return chunked_records
+
 
 # convert assembled chunks to langchain Documents
-def records_to_documents(records):
+def records_to_documents(chunk_lists):
     docs = []
-    for r in records:
-        docs.append(
-            Document(
-                page_content=r['text'],
-                metadata=r['metadata']
+    for chunk_list in chunk_lists:
+        for record in chunk_list:
+            docs.append(
+                Document(
+                    page_content=record['text'],
+                    metadata=record['metadata']
+                )
             )
-        )
     return docs
 
 # extract the date of document revision
@@ -84,6 +88,15 @@ def extract_revision_date(doc_name: str, file_text: str) -> str:
 
     return final_date
 
+# delete the Chroma collection if it already exists
+def delete_collection(collection_name, path):
+    try:
+        chroma_client = PersistentClient(path=path)
+        chroma_client.delete_collection(collection_name)
+        print(f'Collection {collection_name} deleted successfully.')
+    except Exception as e:
+        print(f'Unable to delete collection: {e}')
+
 
 if __name__ == '__main__':
     folder = 'data/HRPP_normalized'
@@ -94,12 +107,14 @@ if __name__ == '__main__':
     embedding_model = HuggingFaceEmbeddings(model_name=embed_model_name)
 
     # initialize tokenizer
-    text_splitter = CharacterTextSplitter(
-        chunk_size=512,
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
         chunk_overlap=100,
-        separator = ' '
+        separators = ['. ', ' '],
+        keep_separator = False
     )
 
+    complete_chunks = []
     for file in text_files:
         doc_name = os.path.splitext(os.path.basename(file))[0]
 
@@ -114,18 +129,24 @@ if __name__ == '__main__':
         embeddings = embedding_model.embed_documents(chunks)
 
         # add metadata
-        assemble_chunks(chunks, embeddings, doc_name, doc_date)
+        doc_complete_chunks = assemble_chunks(chunks, embeddings, doc_name, doc_date)
+        complete_chunks.append(doc_complete_chunks)
 
     # convert records to LangChain Documents
-    docs = records_to_documents(chunked_records)
+    docs = records_to_documents(complete_chunks)
 
     # create or update Chroma DB
+    collection_name = 'hrpp_docs'
+    directory = './data/chroma_db'
+    delete_collection(collection_name, directory)
     vectorstore = Chroma.from_documents(
         documents=docs,
-        collection_name='hrpp_docs',
+        collection_name=collection_name,
         embedding=embedding_model,
-        persist_directory='data/chroma_hrpp'
+        persist_directory=directory
     )
 
     print('[INFO] Chroma DB built and persisted.')
-
+    for doc in docs:
+        if doc.metadata.get('document_name') == 'HRP-302-WORKSHEET-ApprovalIntervals':
+            print(doc)
