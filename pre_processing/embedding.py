@@ -9,6 +9,7 @@
 
 import os
 import re
+import shutil
 import pandas as pd
 from dotenv import load_dotenv
 from datetime import datetime
@@ -89,13 +90,12 @@ def extract_revision_date(doc_name: str, file_text: str) -> str:
     return final_date
 
 # delete the Chroma collection if it already exists
-def delete_collection(collection_name, path):
+def delete_collection(directory):
     try:
-        chroma_client = PersistentClient(path=path)
-        chroma_client.delete_collection(collection_name)
-        print(f'Collection {collection_name} deleted successfully.')
+        shutil.rmtree(directory)
+        print(f'[INFO] Collection deleted successfully.')
     except Exception as e:
-        print(f'Unable to delete collection: {e}')
+        print(f'[INFO] Did not delete collection: {e}')
 
 
 if __name__ == '__main__':
@@ -108,8 +108,8 @@ if __name__ == '__main__':
 
     # initialize tokenizer
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100,
+        chunk_size=600,
+        chunk_overlap=50,
         separators = ['. ', ' '],
         keep_separator = False
     )
@@ -137,8 +137,8 @@ if __name__ == '__main__':
 
     # create or update Chroma DB
     collection_name = 'hrpp_docs'
-    directory = './data/chroma_db'
-    delete_collection(collection_name, directory)
+    directory = 'data/chroma_db'
+    delete_collection(directory)
     vectorstore = Chroma.from_documents(
         documents=docs,
         collection_name=collection_name,
