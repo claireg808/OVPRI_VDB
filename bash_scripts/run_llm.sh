@@ -1,11 +1,9 @@
 #!/bin/bash
-#SBATCH --gres=gpu:80g:1
+#SBATCH --gres=gpu:80g:2
 #SBATCH --mem=100G
 #SBATCH --output=rag_and_frontend/launch_out.log
 #SBATCH --qos=short
 #SBATCH --job-name=run_llm
-
-module load python/3.11
 
 source vdb_venv/bin/activate
 

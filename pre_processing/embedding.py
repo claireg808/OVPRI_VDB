@@ -17,12 +17,33 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-from chromadb import PersistentClient
+from langchain_openai import ChatOpenAI
 
 
 load_dotenv()
 
+# initialize llm
+llm = ChatOpenAI(
+    base_url=os.environ['BASE_URL'],
+    api_key='dummy-key',
+    model=os.environ['MODEL']
+)
 
+
+# create document summary specific to a given chunk
+def summarize_document(context, chunk):
+    prompt = "{PRIOR_TEXT} Here is the chunk we want to situate given the previous content:{CHUNK_CONTENT} " \
+    "Please give a short succinct context to situate this chunk within the overall document for the purposes of improving search retrieval and understanding of the chunk. " \
+    "Answer only with the succinct context and nothing else."
+
+    full_prompt = prompt \
+            .replace('{PRIOR_TEXT}', context) \
+            .replace('{CHUNK_CONTENT}', chunk)
+    
+    summary = llm.invoke(full_prompt).content
+
+    return summary
+    
 # combine chunk data
 def assemble_chunks(chunks, embeddings, doc_name, doc_date):
     chunked_records = []
@@ -108,7 +129,7 @@ if __name__ == '__main__':
 
     # initialize tokenizer
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=600,
+        chunk_size=500,
         chunk_overlap=50,
         separators = ['. ', ' '],
         keep_separator = False
@@ -122,14 +143,24 @@ if __name__ == '__main__':
 
         input_path = os.path.join(folder, file)
         with open(input_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-            doc_date = extract_revision_date(doc_name, text)
-            chunks = text_splitter.split_text(text)
+            full_text = f.read()
+            doc_date = extract_revision_date(doc_name, full_text)
+            chunks = text_splitter.split_text(full_text)
 
-        embeddings = embedding_model.embed_documents(chunks)
+        chunks_and_summaries = []
+        for idx, chunk in enumerate(chunks):
+            start = max(0, idx-10)
+            previous_text = ''
+            for text in chunks[start:idx]:
+                previous_text += text + '\n'
+            summary = summarize_document(previous_text, chunk)
+            text = 'Summary: ' + summary + '\n Chunk: ' + chunk
+            chunks_and_summaries.append(text)
+
+        embeddings = embedding_model.embed_documents(chunks_and_summaries)
 
         # add metadata
-        doc_complete_chunks = assemble_chunks(chunks, embeddings, doc_name, doc_date)
+        doc_complete_chunks = assemble_chunks(chunks_and_summaries, embeddings, doc_name, doc_date)
         complete_chunks.append(doc_complete_chunks)
 
     # convert records to LangChain Documents
