@@ -6,4 +6,6 @@ chroma_hrpp
 *_logs.json
 .hf_token
 logs*
-__pycache__
+*pycache*
+.chroma
+.vscode

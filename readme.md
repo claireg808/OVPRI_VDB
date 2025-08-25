@@ -21,6 +21,8 @@ To embed these documents into a local Chroma Vector Database, run 'embedding.py'
 > sbatch bash_scripts/embedding.sh
 
 ### Launching the RAG system
+The model used (Llama-3-8b) requires access to be granted. Request this access on HuggingFace and create an access token.  
+Store your HuggingFace access token in a file named '.hf_token'  
 To run the LLM and launch the front end website, submit the script 'run_llm.sh':
 > sbatch bash_scripts/run_llm.sh
 
