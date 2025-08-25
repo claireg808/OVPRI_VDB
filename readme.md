@@ -17,7 +17,8 @@ Note: Either change the expected path name, or store your source documents under
 To normalize these documents, run 'normalize.py':
 > python normalize.py
 
-To embed these documents into a local Chroma Vector Database, run 'embedding.py':
+To embed these documents into a local Chroma Vector Database, launch the LLM and run 'embedding.py':
+> sbatch bash_scripts/run_llm.sh
 > sbatch bash_scripts/embedding.sh
 
 ### Launching the RAG system
