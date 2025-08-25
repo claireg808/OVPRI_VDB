@@ -1,11 +1,12 @@
 .env
 vdb_venv
+data*
 HRPP*
 *.log
 chroma_hrpp
 *_logs.json
 .hf_token
 logs*
-*pycache*
+**/__pycache__
 .chroma
 .vscode

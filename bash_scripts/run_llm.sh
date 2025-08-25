@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --gres=gpu:80g:2
+#SBATCH --gres=gpu:80g:1
 #SBATCH --mem=100G
 #SBATCH --output=rag_and_frontend/launch_out.log
 #SBATCH --qos=short
