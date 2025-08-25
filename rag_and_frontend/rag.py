@@ -56,9 +56,9 @@ def re_rank(query, docs):
         text = doc.page_content
         score = cross_encoder.predict((query, text))
         scored_documents.append((doc, score))
-        scored_documents.sort(key=lambda x: x[1], reverse=True)
     
-    # return just the sorted list of documents
+    # return the top 10 documents
+    scored_documents.sort(key=lambda x: x[1], reverse=True)
     final_list = [d[0] for d in scored_documents]
     return final_list[:11]
 
