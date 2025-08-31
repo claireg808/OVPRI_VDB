@@ -13,7 +13,6 @@ from sentence_transformers import CrossEncoder
 
 load_dotenv()
 
-
 # initialize embedding model & llm
 embedding_model_name = os.environ['EMBEDDING_MODEL']
 embedding_model = HuggingFaceEmbeddings(
@@ -85,7 +84,7 @@ def answer_query(query: str, history: list[str]) -> str:
     history_text = '\n'.join([f'User: {q}' for q in history]) if history else ''
 
     # generate prompt
-    with open('rag_and_frontend/prompt_template.txt', 'r', encoding='utf-8') as f:
+    with open('rag/prompt_template.txt', 'r', encoding='utf-8') as f:
         prompt_template_txt = f.read()
 
     full_prompt = prompt_template_txt \
@@ -117,4 +116,4 @@ def answer_query(query: str, history: list[str]) -> str:
     }
 
     # return rag response
-    return response, log_entry
+    return response
