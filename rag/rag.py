@@ -116,4 +116,4 @@ def answer_query(query: str, history: list[str]) -> str:
     }
 
     # return rag response
-    return response
+    return response, log_entry
